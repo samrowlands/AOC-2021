@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+	partOne("input.txt")
 	partTwo("input.txt")
 }
 
