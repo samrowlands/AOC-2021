@@ -4,18 +4,38 @@ import (
 	"bufio"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
 
 func main() {
 	println(partOne("input.txt"))
+	println(partTwo("input.txt"))
 }
 
 func partOne(path string) int {
 	matrix := readInput(path)
-	lowPoints := computeLowPoints(matrix)
+	colLen := len(matrix[0])
+	rowLen := len(matrix)
+	lowPoints, _ := computeLowPoints(matrix, colLen, rowLen)
 	return sumRiskLevels(lowPoints)
+}
+
+func partTwo(path string) int {
+	matrix := readInput(path)
+	colLen := len(matrix[0])
+	rowLen := len(matrix)
+
+	_, lowPointsReference := computeLowPoints(matrix, colLen, rowLen)
+
+	basinLengths := []int{}
+	for _, lowPointReference := range lowPointsReference {
+		basinLengths = append(basinLengths, bfs(matrix, lowPointReference, colLen, rowLen))
+	}
+
+	sort.Ints(basinLengths)
+	return basinLengths[len(basinLengths)-1] * basinLengths[len(basinLengths)-2] * basinLengths[len(basinLengths)-3]
 }
 
 func splitInt(n int) []int {
@@ -66,19 +86,19 @@ func reverseSlice(s []int) {
 // 	}
 // }
 
-func computeLowPoints(matrix matrix) []int {
+func computeLowPoints(matrix matrix, colLen int, rowLen int) ([]int, []gridReference) {
 	lowPoints := []int{}
+	lowPointsReference := []gridReference{}
 
-	colLen := len(matrix[0])
-	rowLen := len(matrix)
 	for rowIndex := range matrix {
 		for colIndex, value := range matrix[rowIndex] {
 			if matrix.isLowPoint(rowIndex, colIndex, colLen, rowLen) {
 				lowPoints = append(lowPoints, value)
+				lowPointsReference = append(lowPointsReference, gridReference{rowIndex: rowIndex, columnIndex: colIndex})
 			}
 		}
 	}
-	return lowPoints
+	return lowPoints, lowPointsReference
 }
 
 func isEdge(rowIndex int, colIndex int, rowLen int, colLen int) bool {
@@ -173,4 +193,89 @@ func sumRiskLevels(lowPoints []int) int {
 	return sum
 }
 
-//
+//ok so we need to find the starting coords for the DFS
+//i.e. the coords of the low points
+//do DFS
+//store basin in slice of basins?
+
+// execute a dfs per basis
+
+// need the row, col and the grid?
+// func dfs(n int) {
+//keep track of visited nodes
+//we to store a node struct with coords and value in visited nodes (probs don't even need to store value)
+
+//one option: compute the adjacency list for the starting low point?
+//could be tricky
+//second option: use breadth-first search
+//a dfs up to the 9 boundary, how?
+// }
+
+//lets do bfs bc we don't have to build an adjaceny list this way:
+
+func bfs(matrix matrix, lowPoint gridReference, colLen int, rowLen int) int {
+	queue := []gridReference{lowPoint}
+	visited := []gridReference{}
+	//initialise a 'queue' i.e. a slice and populate with low point grid reference.
+
+	//while the queue is not empty
+	for len(queue) != 0 {
+		//get the first reference in the queue store it and remove it from the queue
+		cell := queue[0]
+		queue = queue[1:]
+
+		//if this gridReference has been visited continue the loop
+		if hasVisited(visited, cell) {
+			continue
+		}
+		visited = append(visited, cell)
+
+		//for each neighbour of the gridReference.
+		for _, neighbour := range neighbours(cell, colLen, rowLen) {
+			row := neighbour.rowIndex
+			col := neighbour.columnIndex
+			//check its not a 9 and check it hasn't already been visited
+			//if these are true add it to the queue
+			//add the reference to visited (another slice of gridReferences)
+			if matrix[row][col] != 9 && !hasVisited(visited, neighbour) {
+				queue = append(queue, neighbour)
+			}
+		}
+	}
+	return len(visited)
+}
+
+type gridReference struct {
+	rowIndex    int
+	columnIndex int
+}
+
+func hasVisited(visited []gridReference, cell gridReference) bool {
+	for _, ref := range visited {
+		if ref.columnIndex == cell.columnIndex && ref.rowIndex == cell.rowIndex {
+			return true
+		}
+	}
+	return false
+}
+
+//neighbours func, compute slice of grid references
+
+func neighbours(cell gridReference, colLen int, rowLen int) []gridReference {
+	deltas := []gridReference{
+		{rowIndex: 1, columnIndex: 0},
+		{rowIndex: -1, columnIndex: 0},
+		{rowIndex: 0, columnIndex: 1},
+		{rowIndex: 0, columnIndex: -1},
+	}
+	neighbourList := []gridReference{}
+
+	for _, g := range deltas {
+		c := cell.columnIndex + g.columnIndex
+		r := cell.rowIndex + g.rowIndex
+		if 0 <= c && c < colLen && 0 <= r && r < rowLen {
+			neighbourList = append(neighbourList, gridReference{columnIndex: c, rowIndex: r})
+		}
+	}
+	return neighbourList
+}
